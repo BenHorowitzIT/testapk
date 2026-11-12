@@ -1,5 +1,6 @@
 package com.example.engine;
 
+import com.reandroid.apk.APKLogger;
 import com.reandroid.apk.ApkBundle;
 import com.reandroid.apk.ApkModule;
 import com.reandroid.app.AndroidManifest;
@@ -33,14 +34,27 @@ public final class ApkMerger {
      * @param outApk where to write the merged (unsigned) apk
      */
     public static void merge(File apkDir, File outApk) throws IOException {
+        merge(apkDir, outApk, null);
+    }
+
+    public static void merge(File apkDir, File outApk, APKLogger logger) throws IOException {
         ApkBundle bundle = new ApkBundle();
+        if (logger != null) {
+            bundle.setAPKLogger(logger);
+        }
         ApkModule merged = null;
         try {
+            log(logger, "Loading split APKs...");
             bundle.loadApkDirectory(apkDir, false);
             if (bundle.getApkModuleList().isEmpty()) {
                 throw new IOException("No APK files found inside the package");
             }
+            log(logger, "Loaded " + bundle.getApkModuleList().size() + " APKs, merging...");
             merged = bundle.mergeModules(false);
+            if (logger != null) {
+                merged.setAPKLogger(logger);
+            }
+            log(logger, "Cleaning old signatures...");
 
             // Old signatures are invalid after merging
             ZipEntryMap entries = merged.getZipEntryMap();
@@ -48,15 +62,25 @@ public final class ApkMerger {
             entries.remove("stamp-cert-sha256");
             merged.setApkSignatureBlock(null);
 
+            log(logger, "Fixing manifest...");
             sanitizeManifest(merged);
+            log(logger, "Rebuilding resource table...");
             merged.refreshTable();
             merged.refreshManifest();
+            log(logger, "Writing merged APK...");
             merged.writeApk(outApk);
+            log(logger, "Merged APK written (" + (outApk.length() / 1024) + " KB)");
         } finally {
             if (merged != null) {
                 try { merged.close(); } catch (Exception ignored) { }
             }
             try { bundle.close(); } catch (Exception ignored) { }
+        }
+    }
+
+    private static void log(APKLogger logger, String msg) {
+        if (logger != null) {
+            logger.logMessage(msg);
         }
     }
 

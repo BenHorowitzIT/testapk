@@ -20,6 +20,7 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -82,7 +83,11 @@ fun MainScreen(
     // Status snackbar triggers
     LaunchedEffect(statusMessage) {
         statusMessage?.let {
-            snackbarHostState.showSnackbar(it)
+            snackbarHostState.showSnackbar(
+                message = it,
+                withDismissAction = true,
+                duration = SnackbarDuration.Long
+            )
             viewModel.dismissStatus()
         }
     }
@@ -190,7 +195,8 @@ fun MainScreen(
                         storageInfo = storageInfo,
                         onAppClick = { app -> viewModel.selectSandboxedApp(app) },
                         onLaunchApp = { app -> viewModel.launchApp(app) },
-                        onNavigateToInstaller = { viewModel.setTab(VelvetTab.INSTALLER) }
+                        onNavigateToInstaller = { viewModel.setTab(VelvetTab.INSTALLER) },
+                        onSaveLog = { viewModel.saveLog() }
                     )
                 }
 
@@ -254,7 +260,8 @@ fun MainScreen(
     installProgress?.let { (progress, status) ->
         InstallProgressDialog(
             progress = progress,
-            status = status
+            status = status,
+            onCancel = { viewModel.cancelInstall() }
         )
     }
 
@@ -262,7 +269,8 @@ fun MainScreen(
     if (isInspecting && installProgress == null) {
         InstallProgressDialog(
             progress = 0.1f,
-            status = "Reading package..."
+            status = "Reading package...",
+            title = "Opening package"
         )
     }
 }

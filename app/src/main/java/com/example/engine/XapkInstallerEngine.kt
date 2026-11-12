@@ -4,8 +4,14 @@ import android.content.Context
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import com.example.data.model.ParsedPackage
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 import java.io.File
 import java.io.IOException
@@ -16,11 +22,12 @@ import java.util.zip.ZipFile
  * Reads APK / XAPK / APKS files and installs them into the VelvetBox sandbox.
  *
  * XAPK install steps:
- *  1. unpack every .apk inside the XAPK
- *  2. if there are several (base + config splits), merge them into one APK and sign it,
+ *  1. pick only the splits this phone needs (its CPU, screen density, language)
+ *  2. unpack them
+ *  3. if there are several, merge them into one APK (in a separate process) and sign it,
  *     because the sandbox engine only takes single APKs
- *  3. install that APK into the sandbox
- *  4. copy OBB game data into the sandboxed app's own Android/obb folder
+ *  4. install that APK into the sandbox
+ *  5. copy OBB game data into the sandboxed app's own Android/obb folder
  */
 class XapkInstallerEngine(
     private val context: Context,
@@ -242,13 +249,14 @@ class XapkInstallerEngine(
         parsed: ParsedPackage,
         onProgress: (progress: Float, status: String) -> Unit
     ): Result<String> = withContext(Dispatchers.IO) {
+        val job = coroutineContext[Job]
         val work = File(workRoot, "job_${System.currentTimeMillis()}")
         try {
             var hasObb = false
 
             val installedPkg: String = if (!parsed.isXapk) {
                 onProgress(0.3f, "Installing into the sandbox...")
-                sandbox.installApk(parsed.sourceFile).getOrThrow()
+                installWithTimeout(parsed.sourceFile)
             } else {
                 work.mkdirs()
                 val apkDir = File(work, "apks").apply { mkdirs() }
@@ -256,47 +264,64 @@ class XapkInstallerEngine(
                     val layout = readLayout(zip)
                     val pkg: String
 
-                    // 1. unpack APKs
-                    layout.apkEntries.forEachIndexed { i, name ->
+                    // 1. pick only the splits this phone needs
+                    val chosen = SplitPicker.pick(layout.apkEntries, layout.baseEntry)
+                    val skipped = layout.apkEntries.size - chosen.size
+                    onProgress(
+                        0.04f,
+                        "Using ${chosen.size} of ${layout.apkEntries.size} APKs" +
+                            if (skipped > 0) " (skipping $skipped not needed on this phone)" else ""
+                    )
+
+                    // 2. unpack them
+                    chosen.forEachIndexed { i, name ->
+                        job?.ensureActive()
                         onProgress(
-                            0.05f + 0.25f * i / layout.apkEntries.size,
-                            "Unpacking ${File(name).name}..."
+                            0.05f + 0.2f * i / chosen.size,
+                            "Unpacking ${File(name).name} (${i + 1} of ${chosen.size})"
                         )
-                        // flatten names; keep base recognisable for the merger
                         val outName = if (name == layout.baseEntry) "base.apk" else uniqueName(apkDir, File(name).name)
-                        extract(zip, zip.getEntry(name), File(apkDir, outName))
+                        extract(zip, zip.getEntry(name), File(apkDir, outName), checkCancel = { job?.ensureActive() })
                     }
 
-                    // 2. merge splits if needed
-                    val apkToInstall: File = if (layout.apkEntries.size == 1) {
+                    // 3. merge + sign if there is more than one
+                    val apkToInstall: File = if (chosen.size == 1) {
                         apkDir.listFiles()!!.first()
                     } else {
-                        onProgress(0.35f, "Merging ${layout.apkEntries.size} split APKs...")
+                        onProgress(0.3f, "Merging ${chosen.size} APKs...")
                         val merged = File(work, "merged-unsigned.apk")
-                        ApkMerger.merge(apkDir, merged)
+                        var lines = 0
+                        MergeRunner.merge(context, apkDir, merged) { line ->
+                            lines++
+                            val p = 0.3f + 0.25f * (1f - 1f / (1f + lines / 15f))
+                            onProgress(p, "Merging: ${line.take(90)}")
+                        }
                         apkDir.deleteRecursively()
-                        onProgress(0.55f, "Signing merged APK...")
+                        job?.ensureActive()
+                        onProgress(0.57f, "Signing merged APK...")
                         val signed = File(work, "merged.apk")
                         ApkResigner.sign(context, merged, signed)
                         merged.delete()
                         signed
                     }
 
-                    // 3. install
+                    // 4. install
+                    job?.ensureActive()
                     onProgress(0.65f, "Installing into the sandbox...")
-                    pkg = sandbox.installApk(apkToInstall).getOrThrow()
+                    pkg = installWithTimeout(apkToInstall)
 
-                    // 4. OBB data
+                    // 5. OBB data
                     if (layout.obbEntries.isNotEmpty()) {
                         hasObb = true
                         val obbTargets = obbTargets(layout, pkg)
                         val total = layout.obbEntries.sumOf { zip.getEntry(it).size.coerceAtLeast(1L) }
                         var done = 0L
                         for ((entryName, target) in obbTargets) {
+                            job?.ensureActive()
                             val entry = zip.getEntry(entryName)
                             target.parentFile?.mkdirs()
                             onProgress(0.7f + 0.28f * done / total, "Copying game data ${target.name}...")
-                            extract(zip, entry, target) { copied ->
+                            extract(zip, entry, target, { job?.ensureActive() }) { copied ->
                                 onProgress(
                                     0.7f + 0.28f * (done + copied) / total,
                                     "Copying game data ${target.name}..."
@@ -326,13 +351,27 @@ class XapkInstallerEngine(
             )
             onProgress(1f, "Installed!")
             Result.success(installedPkg)
+        } catch (c: CancellationException) {
+            throw c
         } catch (t: Throwable) {
             Result.failure(
-                if (t is OutOfMemoryError) IOException("Not enough memory to merge this XAPK.") else t
+                if (t is OutOfMemoryError) IOException("Not enough memory for this XAPK.") else t
             )
         } finally {
+            MergeRunner.stop(context)
             work.deleteRecursively()
         }
+    }
+
+    /**
+     * The engine's install call can't be interrupted, so wait for it in a detached
+     * coroutine and give up after 5 minutes instead of hanging forever.
+     */
+    private suspend fun installWithTimeout(apk: File): String {
+        val deferred = CoroutineScope(Dispatchers.IO).async { sandbox.installApk(apk) }
+        val result = withTimeoutOrNull(5 * 60 * 1000L) { deferred.await() }
+            ?: throw IOException("The sandbox engine took more than 5 minutes, so the install was stopped.")
+        return result.getOrThrow()
     }
 
     /** Decides where each OBB goes inside the sandbox's virtual storage. */
@@ -368,7 +407,13 @@ class XapkInstallerEngine(
         return "${i}_$name"
     }
 
-    private fun extract(zip: ZipFile, entry: ZipEntry, dest: File, onBytes: ((Long) -> Unit)? = null) {
+    private fun extract(
+        zip: ZipFile,
+        entry: ZipEntry,
+        dest: File,
+        checkCancel: () -> Unit = {},
+        onBytes: ((Long) -> Unit)? = null
+    ) {
         zip.getInputStream(entry).use { input ->
             dest.outputStream().use { out ->
                 val buffer = ByteArray(256 * 1024)
@@ -379,9 +424,10 @@ class XapkInstallerEngine(
                     if (n < 0) break
                     out.write(buffer, 0, n)
                     copied += n
-                    if (onBytes != null && copied - lastReport > 8L * 1024 * 1024) {
+                    if (copied - lastReport > 8L * 1024 * 1024) {
                         lastReport = copied
-                        onBytes(copied)
+                        checkCancel()
+                        onBytes?.invoke(copied)
                     }
                 }
             }

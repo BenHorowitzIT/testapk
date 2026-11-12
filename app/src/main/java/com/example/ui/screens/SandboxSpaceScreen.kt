@@ -39,6 +39,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -72,6 +73,7 @@ fun SandboxSpaceScreen(
     onAppClick: (SandboxedAppEntity) -> Unit,
     onLaunchApp: (SandboxedAppEntity) -> Unit,
     onNavigateToInstaller: () -> Unit,
+    onSaveLog: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -126,6 +128,20 @@ fun SandboxSpaceScreen(
                         app = app,
                         onClick = { onAppClick(app) },
                         onLaunch = { onLaunchApp(app) }
+                    )
+                }
+            }
+
+            // Save a log file for troubleshooting
+            item {
+                TextButton(
+                    onClick = onSaveLog,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Save log to Download/VelvetBox",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = VelvetPrimary
                     )
                 }
             }

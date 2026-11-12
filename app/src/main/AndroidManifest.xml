@@ -54,6 +54,11 @@
                 <data android:mimeType="application/octet-stream" />
             </intent-filter>
         </activity>
+        <!-- Merges XAPK split APKs in a separate process with its own memory -->
+        <service
+            android:name=".engine.MergeService"
+            android:exported="false"
+            android:process=":merge" />
     </application>
 
 </manifest>

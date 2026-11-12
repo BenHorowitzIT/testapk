@@ -12,9 +12,12 @@ import com.example.data.model.SandboxStorageInfo
 import com.example.engine.FileCategoryFilter
 import com.example.engine.FileManager
 import com.example.engine.FileSortOption
+import com.example.engine.LogSaver
+import com.example.engine.MergeRunner
 import com.example.engine.SandboxManager
 import com.example.engine.XapkInstallerEngine
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -244,9 +247,12 @@ class VelvetBoxViewModel(application: Application) : AndroidViewModel(applicatio
         xapkEngine.clearInspectCache()
     }
 
+    private var installJob: Job? = null
+
     fun installInspectedPackage() {
         val pkg = _inspectedPackage.value ?: return
-        viewModelScope.launch {
+        if (installJob?.isActive == true) return
+        installJob = viewModelScope.launch {
             _installProgress.value = 0.02f to "Preparing sandbox..."
             val result = xapkEngine.installIntoSandbox(pkg) { progress, status ->
                 _installProgress.value = progress to status
@@ -258,8 +264,35 @@ class VelvetBoxViewModel(application: Application) : AndroidViewModel(applicatio
                 refreshApps()
                 _currentTab.value = VelvetTab.SANDBOX
             }.onFailure { err ->
-                _statusMessage.value = "Sandbox install failed: ${err.localizedMessage ?: err.javaClass.simpleName}"
+                val reason = err.localizedMessage ?: err.javaClass.simpleName
+                val saved = withContext(Dispatchers.IO) {
+                    LogSaver.save(getApplication<Application>(), "Install of ${pkg.packageName} failed: $reason")
+                }
+                _statusMessage.value = "Install failed: $reason" +
+                    (saved.getOrNull()?.let { "\nLog saved to Download/VelvetBox/${it.name}" } ?: "")
             }
+        }
+    }
+
+    /** Cancel button in the install dialog. */
+    fun cancelInstall() {
+        installJob?.cancel()
+        installJob = null
+        MergeRunner.stop(getApplication<Application>())
+        _installProgress.value = null
+        _statusMessage.value = "Install cancelled"
+    }
+
+    /** "Save log" button. */
+    fun saveLog() {
+        viewModelScope.launch {
+            val saved = withContext(Dispatchers.IO) {
+                LogSaver.save(getApplication<Application>(), "Saved from the Save log button")
+            }
+            _statusMessage.value = saved.fold(
+                onSuccess = { "Log saved to Download/VelvetBox/${it.name}" },
+                onFailure = { "Couldn't save log: ${it.localizedMessage}" }
+            )
         }
     }
 

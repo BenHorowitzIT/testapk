@@ -12,8 +12,13 @@ import top.niunaijun.blackbox.app.configuration.ClientConfiguration
  */
 class VelvetBoxApp : Application() {
 
+    /** The XAPK merger runs in its own ":merge" process and must not start the engine. */
+    private val isMergeProcess: Boolean
+        get() = Application.getProcessName()?.endsWith(":merge") == true
+
     override fun attachBaseContext(base: Context) {
         super.attachBaseContext(base)
+        if (isMergeProcess) return
         try {
             BlackBoxCore.get().doAttachBaseContext(base, object : ClientConfiguration() {
                 override fun getHostPackageName(): String = base.packageName
@@ -32,6 +37,7 @@ class VelvetBoxApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        if (isMergeProcess) return
         try {
             BlackBoxCore.get().doCreate()
         } catch (t: Throwable) {

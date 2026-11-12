@@ -137,12 +137,39 @@ class SandboxManager(private val context: Context) {
     suspend fun installApk(apk: File): Result<String> = withContext(Dispatchers.IO) {
         ensureEngine()
         try {
-            val result = BlackBoxCore.get().installPackageAsUser(apk, USER_ID)
-            if (result != null && result.success) {
-                Result.success(result.packageName ?: "")
-            } else {
-                Result.failure(IllegalStateException(result?.msg ?: "The sandbox engine rejected this app."))
+            val expectedPkg = try {
+                context.packageManager.getPackageArchiveInfo(apk.absolutePath, 0)?.packageName
+            } catch (_: Throwable) {
+                null
             }
+            val result = BlackBoxCore.get().installPackageAsUser(apk, USER_ID)
+                ?: return@withContext Result.failure(
+                    IllegalStateException("The sandbox engine didn't answer. Tap \"Save log\" and send the log.")
+                )
+            if (!result.success) {
+                return@withContext Result.failure(
+                    IllegalStateException(result.msg ?: "The sandbox engine rejected this app.")
+                )
+            }
+            // The engine reports "success" even when it crashes halfway, so check for real.
+            val pkg = result.packageName?.takeIf { it.isNotEmpty() } ?: expectedPkg
+            val reallyInstalled = pkg != null && try {
+                BlackBoxCore.get().isInstalled(pkg, USER_ID)
+            } catch (_: Throwable) {
+                false
+            }
+            if (!reallyInstalled) {
+                Result.failure(
+                    IllegalStateException(
+                        "The sandbox engine said OK, but the app isn't in the sandbox " +
+                            "(the engine probably crashed)."
+                    )
+                )
+            } else {
+                Result.success(pkg!!)
+            }
+        } catch (e: NullPointerException) {
+            Result.failure(IllegalStateException("The sandbox engine isn't running.", e))
         } catch (t: Throwable) {
             Result.failure(t)
         }

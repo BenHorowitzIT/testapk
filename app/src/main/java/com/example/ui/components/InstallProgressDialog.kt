@@ -26,6 +26,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -48,6 +49,8 @@ import com.example.ui.theme.VelvetSurfaceVariant
 fun InstallProgressDialog(
     progress: Float,
     status: String,
+    title: String = "Installing to VelvetBox",
+    onCancel: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
@@ -100,7 +103,7 @@ fun InstallProgressDialog(
                 Spacer(modifier = Modifier.height(20.dp))
 
                 Text(
-                    text = "Installing to VelvetBox",
+                    text = title,
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -111,7 +114,7 @@ fun InstallProgressDialog(
                     text = status,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2
+                    maxLines = 3
                 )
 
                 Spacer(modifier = Modifier.height(20.dp))
@@ -134,6 +137,17 @@ fun InstallProgressDialog(
                     style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
                     color = VelvetPrimary
                 )
+
+                if (onCancel != null) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    TextButton(onClick = onCancel) {
+                        Text(
+                            text = "Cancel",
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                            color = VelvetPrimary
+                        )
+                    }
+                }
             }
         }
     }

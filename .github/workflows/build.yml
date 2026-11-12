@@ -68,3 +68,21 @@ jobs:
         with:
           name: VelvetBox-apk
           path: app/build/outputs/apk/release/*.apk
+
+      # Test build of the engine's own demo app, to check whether the engine
+      # itself works on the phone. Failing here never blocks VelvetBox.
+      - name: Build engine demo app (test only)
+        continue-on-error: true
+        run: |
+          cd engine/NewBlackbox
+          chmod +x gradlew
+          ./gradlew :app:assembleDebug --no-daemon
+
+      - name: Upload engine demo app
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v5
+        with:
+          name: Engine-demo-apk
+          path: engine/NewBlackbox/app/build/outputs/apk/debug/*universal*.apk
+          if-no-files-found: warn

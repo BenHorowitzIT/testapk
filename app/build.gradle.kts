@@ -15,8 +15,8 @@ android {
     minSdk = 28
     // The sandbox engine needs the host app to target API 28.
     targetSdk = 28
-    versionCode = 2
-    versionName = "2.0"
+    versionCode = 3
+    versionName = "2.1"
 
     ndk {
       // arm64-v8a runs 64-bit apps in the sandbox; armeabi-v7a is kept for 32-bit-only phones.
