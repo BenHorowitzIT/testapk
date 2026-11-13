@@ -393,7 +393,7 @@ class XapkInstallerEngine(
         return abis.firstOrNull() ?: Build.SUPPORTED_ABIS.first()
     }
 
-    /** Copies lib/<abi>/*.so from [apk] into the app's native library folder. */
+    /** Copies the native libraries (lib/<abi>/...so files) from [apk] into the app's library folder. */
     private fun extractNativeLibs(apk: File, abi: String, libDir: File): Int {
         var count = 0
         ZipFile(apk).use { zip ->

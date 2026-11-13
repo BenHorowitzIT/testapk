@@ -133,7 +133,7 @@ class SandboxManager(private val context: Context) {
             )
         }
 
-    /** Installs a single (already merged + signed if needed) APK file into the sandbox. */
+    /** Installs a single APK file into the sandbox. */
     suspend fun installApk(apk: File): Result<String> = withContext(Dispatchers.IO) {
         ensureEngine()
         try {
