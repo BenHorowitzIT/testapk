@@ -4,7 +4,7 @@ Android app sandbox (Android 9+): apps you install go inside Ben's Sandbox, neve
 
 - Install regular APK files into the sandbox (pick a file, or from the detected list)
 - Open, disable, clear data, uninstall sandboxed apps
-- Home-screen shortcuts for sandboxed apps (long-press an app)
+- "Sandbox app" home-screen widget: long-press the Ben's Sandbox icon, Widgets, pick an app
 
 ## Build
 Push to GitHub. The **Build APK** workflow downloads the sandbox engine, applies the patches in

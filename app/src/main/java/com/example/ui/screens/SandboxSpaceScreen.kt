@@ -75,7 +75,6 @@ fun SandboxSpaceScreen(
     onLaunchApp: (SandboxedAppEntity) -> Unit,
     onNavigateToInstaller: () -> Unit,
     onSaveLog: () -> Unit = {},
-    onAddShortcut: (SandboxedAppEntity) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Box(
@@ -105,13 +104,7 @@ fun SandboxSpaceScreen(
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onBackground
                     )
-                    if (apps.isNotEmpty()) {
-                        Text(
-                            text = "Long-press for home screen",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+
                 }
             }
 
@@ -125,7 +118,6 @@ fun SandboxSpaceScreen(
                     SandboxedAppItem(
                         app = app,
                         onClick = { onAppClick(app) },
-                        onLongClick = { onAddShortcut(app) },
                         onLaunch = { onLaunchApp(app) }
                     )
                 }
@@ -240,7 +232,6 @@ private fun StorageGaugeCard(
 private fun SandboxedAppItem(
     app: SandboxedAppEntity,
     onClick: () -> Unit,
-    onLongClick: () -> Unit,
     onLaunch: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -249,7 +240,7 @@ private fun SandboxedAppItem(
         shape = RoundedCornerShape(16.dp),
         modifier = modifier
             .fillMaxWidth()
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
+            .clickable(onClick = onClick)
             .border(1.dp, RoseGlowStart.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
             .testTag("sandboxed_app_${app.packageName}")
     ) {

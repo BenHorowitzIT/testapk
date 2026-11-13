@@ -5,8 +5,6 @@
     <!-- Reading APK files (asked for at first launch) -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
-    <!-- Home-screen shortcuts on launchers without pinned-shortcut support -->
-    <uses-permission android:name="com.android.launcher.permission.INSTALL_SHORTCUT" />
 
     <!-- The sandbox engine (Bcore) adds the rest of its permissions and its
          stub activities/services/providers through manifest merging. -->
@@ -52,7 +50,32 @@
             </intent-filter>
         </activity>
 
-        <!-- Opens a sandboxed app from a home-screen shortcut, then closes itself -->
+        <!-- "Sandbox app" home-screen widget -->
+        <receiver
+            android:name=".widget.SandboxAppWidget"
+            android:exported="true"
+            android:label="@string/widget_sandbox_app_label">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/sandbox_app_widget_info" />
+        </receiver>
+
+        <!-- Picks which sandboxed app a new widget opens -->
+        <activity
+            android:name=".widget.WidgetConfigActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:label="@string/widget_sandbox_app_label"
+            android:theme="@style/Theme.MyApplication">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
+            </intent-filter>
+        </activity>
+
+        <!-- Opens a sandboxed app from its widget, then closes itself -->
         <activity
             android:name=".ShortcutLaunchActivity"
             android:exported="true"

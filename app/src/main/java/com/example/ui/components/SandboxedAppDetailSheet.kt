@@ -1,6 +1,5 @@
 package com.example.ui.components
 
-import androidx.compose.material.icons.filled.AddToHomeScreen
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -75,7 +74,6 @@ fun SandboxedAppDetailSheet(
     onClearData: () -> Unit,
     onUninstall: () -> Unit,
     onToggleStatus: () -> Unit,
-    onAddShortcut: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     ModalBottomSheet(
@@ -320,29 +318,6 @@ fun SandboxedAppDetailSheet(
                 )
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Home-screen shortcut
-            OutlinedButton(
-                onClick = onAddShortcut,
-                shape = RoundedCornerShape(14.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.AddToHomeScreen,
-                    contentDescription = null,
-                    tint = VelvetPrimary,
-                    modifier = Modifier.size(18.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Add to home screen",
-                    color = VelvetPrimary,
-                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
-                )
-            }
 
             Spacer(modifier = Modifier.height(8.dp))
 

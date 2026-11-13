@@ -12,7 +12,7 @@ import com.example.data.model.SandboxStorageInfo
 import com.example.engine.FileCategoryFilter
 import com.example.engine.FileManager
 import com.example.engine.FileSortOption
-import com.example.engine.HomeShortcuts
+import com.example.widget.SandboxAppWidget
 import com.example.engine.LogSaver
 import com.example.engine.SandboxManager
 import com.example.engine.XapkInstallerEngine
@@ -107,6 +107,7 @@ class VelvetBoxViewModel(application: Application) : AndroidViewModel(applicatio
         viewModelScope.launch {
             val apps = sandboxManager.listApps()
             _sandboxedApps.value = apps
+            SandboxAppWidget.updateAll(getApplication<Application>())
             _storageInfo.value = sandboxManager.getStorageInfo(apps)
             // keep an open detail sheet in sync
             _selectedSandboxedApp.value?.let { sel ->
@@ -345,20 +346,6 @@ class VelvetBoxViewModel(application: Application) : AndroidViewModel(applicatio
                 setCategoryFilter(_categoryFilter.value)
             }
             scanDetectedPackages()
-        }
-    }
-
-    /** Puts a shortcut for a sandboxed app on the home screen. */
-    fun addHomeScreenShortcut(app: SandboxedAppEntity) {
-        viewModelScope.launch {
-            val ok = withContext(Dispatchers.IO) {
-                HomeShortcuts.add(getApplication<Application>(), app)
-            }
-            _statusMessage.value = if (ok) {
-                "Added ${app.appName} to the home screen"
-            } else {
-                "Your home screen app doesn't allow adding shortcuts"
-            }
         }
     }
 

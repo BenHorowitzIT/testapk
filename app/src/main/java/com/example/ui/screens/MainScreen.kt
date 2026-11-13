@@ -200,8 +200,7 @@ fun MainScreen(
                         onAppClick = { app -> viewModel.selectSandboxedApp(app) },
                         onLaunchApp = { app -> viewModel.launchApp(app) },
                         onNavigateToInstaller = { viewModel.setTab(VelvetTab.INSTALLER) },
-                        onSaveLog = { viewModel.saveLog() },
-                        onAddShortcut = { app -> viewModel.addHomeScreenShortcut(app) }
+                        onSaveLog = { viewModel.saveLog() }
                     )
                 }
 
@@ -239,8 +238,7 @@ fun MainScreen(
             },
             onClearData = { viewModel.clearAppData(app) },
             onUninstall = { viewModel.uninstallApp(app) },
-            onToggleStatus = { viewModel.toggleAppStatus(app) },
-            onAddShortcut = { viewModel.addHomeScreenShortcut(app) }
+            onToggleStatus = { viewModel.toggleAppStatus(app) }
         )
     }
 

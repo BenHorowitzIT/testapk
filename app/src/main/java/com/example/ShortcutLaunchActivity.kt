@@ -4,18 +4,18 @@ import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.lifecycle.lifecycleScope
-import com.example.engine.HomeShortcuts
+import com.example.widget.SandboxAppWidget
 import com.example.engine.SandboxManager
 import kotlinx.coroutines.launch
 
 /**
- * Invisible screen behind home-screen shortcuts: opens the sandboxed app, then closes.
+ * Invisible screen behind the home-screen widgets: opens the sandboxed app, then closes.
  */
 class ShortcutLaunchActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val pkg = intent?.getStringExtra(HomeShortcuts.EXTRA_PACKAGE)
+        val pkg = intent?.getStringExtra(SandboxAppWidget.EXTRA_PACKAGE)
         if (pkg.isNullOrEmpty()) {
             finish()
             return
