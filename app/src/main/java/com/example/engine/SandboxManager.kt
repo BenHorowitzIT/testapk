@@ -159,10 +159,11 @@ class SandboxManager(private val context: Context) {
                 false
             }
             if (!reallyInstalled) {
+                val engineError = lastEngineError()
                 Result.failure(
                     IllegalStateException(
-                        "The sandbox engine said OK, but the app isn't in the sandbox " +
-                            "(the engine probably crashed)."
+                        "The sandbox engine said OK, but the app isn't in the sandbox." +
+                            (engineError?.let { " Engine error: $it" } ?: " (the engine probably crashed)")
                     )
                 )
             } else {
@@ -173,6 +174,21 @@ class SandboxManager(private val context: Context) {
         } catch (t: Throwable) {
             Result.failure(t)
         }
+    }
+
+    /**
+     * The engine swallows its own install errors, but prints them to the log.
+     * Pull the most recent exception line from VelvetBox's log.
+     */
+    private fun lastEngineError(): String? = try {
+        val process = Runtime.getRuntime().exec(arrayOf("logcat", "-d", "-t", "400", "-v", "brief"))
+        val lines = process.inputStream.bufferedReader().use { it.readLines() }
+        lines.lastOrNull { line ->
+            (line.contains("System.err") || line.contains("AndroidRuntime")) &&
+                (line.contains("Exception") || line.contains("Error:") || line.contains("Error "))
+        }?.substringAfter("): ")?.trim()?.take(300)
+    } catch (_: Throwable) {
+        null
     }
 
     suspend fun isInstalled(packageName: String): Boolean = withContext(Dispatchers.IO) {

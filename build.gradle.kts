@@ -7,5 +7,5 @@ plugins {
 
 // Values the sandbox engine's build script reads from the root project.
 extra["compileSdkVersion"] = 35
-extra["targetSdkVersion"] = 28
+extra["targetSdkVersion"] = 27
 extra["minSdk"] = 21
