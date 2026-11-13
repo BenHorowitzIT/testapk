@@ -1,5 +1,6 @@
 package com.example.engine
 
+import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import android.os.Process
@@ -49,6 +50,7 @@ object MergeRunner {
         var lastActivity = start
         var readOffset = 0L
         var finished = false
+        var missedChecks = 0
         try {
             while (true) {
                 delay(500)
@@ -79,10 +81,18 @@ object MergeRunner {
                     }
                 }
 
-                // Process died without writing a status (usually out of memory)
+                // Process died without writing a status (usually out of memory).
+                // Ask Android (not /proc, which Android 9 hides) and require 3 misses in a row.
                 val pid = readPid(context)
-                if (pid != null && !File("/proc/$pid").exists() && !statusFile(context).exists()) {
-                    throw IOException("The merge process crashed (probably out of memory).")
+                if (pid != null && !statusFile(context).exists()) {
+                    if (isProcessAlive(context, pid)) {
+                        missedChecks = 0
+                    } else {
+                        missedChecks++
+                        if (missedChecks >= 3 && !statusFile(context).exists()) {
+                            throw IOException("The merge process crashed (probably out of memory).")
+                        }
+                    }
                 }
                 if (pid == null && now - start > 30_000) {
                     throw IOException("The merge process didn't start.")
@@ -111,6 +121,16 @@ object MergeRunner {
                 try { Process.killProcess(pid) } catch (_: Throwable) {}
             }
         }
+    }
+
+    /** True if [pid] is one of VelvetBox's own running processes. */
+    private fun isProcessAlive(context: Context, pid: Int): Boolean = try {
+        val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val procs = am.runningAppProcesses
+        // If Android won't tell us, assume it's alive and let the timeouts decide.
+        procs == null || procs.any { it.pid == pid }
+    } catch (_: Throwable) {
+        true
     }
 
     private fun readPid(context: Context): Int? = try {
