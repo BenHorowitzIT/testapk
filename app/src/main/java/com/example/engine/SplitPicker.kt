@@ -10,7 +10,7 @@ import java.util.Locale
  * Chooses which split APKs of an XAPK/APKS this phone actually needs, the way the
  * Play Store and SAI do: the base, feature splits, one CPU (ABI) split, one screen
  * density split, and the phone's language + English. Everything else is skipped,
- * which makes merging much lighter.
+ * so less is copied into the sandbox.
  */
 object SplitPicker {
 
@@ -44,6 +44,16 @@ object SplitPicker {
             else -> Kind.Other
         }
     }
+
+    /** "arm64-v8a" style ABI name if [entry] is a CPU split, else null. */
+    fun abiOf(entry: String): String? {
+        val k = kindOf(entry, null)
+        return if (k is Kind.Abi) k.abi.replace('_', '-') else null
+    }
+
+    /** Split name Android expects, e.g. "config.xxhdpi" for config.xxhdpi.apk or split_config.xxhdpi.apk. */
+    fun splitNameOf(entry: String): String =
+        File(entry).name.removeSuffix(".apk").removeSuffix(".APK").removePrefix("split_")
 
     fun pick(apkEntries: List<String>, baseEntry: String?): List<String> {
         if (apkEntries.size <= 1) return apkEntries

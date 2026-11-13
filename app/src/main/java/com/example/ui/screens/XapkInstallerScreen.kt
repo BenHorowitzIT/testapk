@@ -327,7 +327,7 @@ private fun XapkAndroid9GuideCard(
                     text = "• Native Android 9 has no built-in XAPK handler: Standard package installers reject .xapk files because they are zip containers containing split APKs and OBB data.\n" +
                             "• VelvetBox decomposes the XAPK container natively without external tools:\n" +
                             "  1. Reads manifest.json and unpacks the base + split APKs.\n" +
-                            "  2. Merges the splits into one APK and signs it for the sandbox.\n" +
+                            "  2. Installs the base APK and adds only the splits your phone needs (CPU, screen, language).\n" +
                             "  3. Copies OBB game data into the app's own Android/obb folder inside the sandbox.\n" +
                             "  4. The app runs inside VelvetBox, so the phone never installs it or sees its package name.\n" +
                             "• Some apps still won't run in any sandbox: ones that need Google sign-in / Play Services, banking apps, games with anti-cheat, and 32-bit-only apps.",

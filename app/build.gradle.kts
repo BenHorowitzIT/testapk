@@ -17,8 +17,8 @@ android {
     // API 27: Android 9 then lets VelvetBox use the hidden system parts the
     // sandbox engine needs ("dark greylist"), even if the exemption below fails.
     targetSdk = 27
-    versionCode = 5
-    versionName = "2.3"
+    versionCode = 6
+    versionName = "2.4"
 
     ndk {
       // arm64-v8a runs 64-bit apps in the sandbox; armeabi-v7a is kept for 32-bit-only phones.
@@ -82,10 +82,6 @@ kotlin {
 dependencies {
   // Sandbox engine
   implementation(project(":Bcore"))
-  // Split APK merger (ARSCLib, Apache-2.0) - downloaded by the GitHub workflow into app/libs
-  implementation(files("libs/ARSCLib.jar"))
-  // Re-signs merged XAPKs so the engine accepts them
-  implementation(libs.apksig)
 
   implementation(platform(libs.androidx.compose.bom))
   implementation(libs.androidx.core.ktx)

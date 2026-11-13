@@ -10,7 +10,7 @@ import java.util.Locale
 
 /**
  * Writes a troubleshooting log to Download/VelvetBox: VelvetBox's own log output
- * (all its processes, including the sandbox engine) plus the last XAPK merge log.
+ * (all its processes, including the sandbox engine) plus the steps of the last install.
  */
 object LogSaver {
 
@@ -39,10 +39,10 @@ object LogSaver {
             out.write("Device: ${Build.MANUFACTURER} ${Build.MODEL}\n")
             out.write("ABIs: ${Build.SUPPORTED_ABIS.joinToString()}\n\n")
 
-            val mergeLog = MergeRunner.logFile(context)
-            if (mergeLog.exists()) {
-                out.write("===== Last XAPK merge log =====\n")
-                out.write(mergeLog.readText().takeLast(200_000))
+            val installLog = XapkInstallerEngine.installLogFile(context)
+            if (installLog.exists()) {
+                out.write("===== Last install steps =====\n")
+                out.write(installLog.readText().takeLast(200_000))
                 out.write("\n\n")
             }
 

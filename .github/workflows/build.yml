@@ -8,8 +8,6 @@ env:
   # Sandbox engine: NewBlackbox (Apache-2.0), pinned to a tested commit
   ENGINE_REPO: https://github.com/ALEX5402/NewBlackbox.git
   ENGINE_COMMIT: 89b59836c66f173756a4ae258cf379a957649820
-  # Split-APK merger: ARSCLib jar shipped with APKEditor (Apache-2.0)
-  APKEDITOR_TAG: V1.4.9
 
 jobs:
   build:
@@ -45,18 +43,10 @@ jobs:
           git remote add origin "$ENGINE_REPO"
           git fetch -q --depth 1 origin "$ENGINE_COMMIT"
           git checkout -q FETCH_HEAD
-          # Shrinking the engine breaks its reflection tricks, so turn it off.
-          sed -i 's/minifyEnabled true/minifyEnabled false/' Bcore/build.gradle
           echo "Engine at $(git rev-parse HEAD)"
 
-      - name: Download split-APK merger
-        run: |
-          git clone -q --depth 1 --branch "$APKEDITOR_TAG" https://github.com/REAndroid/APKEditor.git "$RUNNER_TEMP/apkeditor"
-          mkdir -p app/libs
-          cp "$RUNNER_TEMP/apkeditor/libs/ARSCLib.jar" app/libs/ARSCLib.jar
-          # Drop the stub copies of Android framework classes; the phone already has them.
-          zip -q -d app/libs/ARSCLib.jar 'android/*' 'org/xmlpull/*' || true
-          ls -la app/libs
+      - name: Apply VelvetBox engine patches
+        run: python3 engine-patches/apply_patches.py engine/NewBlackbox
 
       - name: Build
         run: |

@@ -13,7 +13,6 @@ import com.example.engine.FileCategoryFilter
 import com.example.engine.FileManager
 import com.example.engine.FileSortOption
 import com.example.engine.LogSaver
-import com.example.engine.MergeRunner
 import com.example.engine.SandboxManager
 import com.example.engine.XapkInstallerEngine
 import kotlinx.coroutines.Dispatchers
@@ -278,7 +277,6 @@ class VelvetBoxViewModel(application: Application) : AndroidViewModel(applicatio
     fun cancelInstall() {
         installJob?.cancel()
         installJob = null
-        MergeRunner.stop(getApplication<Application>())
         _installProgress.value = null
         _statusMessage.value = "Install cancelled"
     }

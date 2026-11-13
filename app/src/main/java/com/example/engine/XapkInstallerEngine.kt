@@ -3,6 +3,8 @@ package com.example.engine
 import android.content.Context
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
+import android.os.Build
+import android.os.Process
 import com.example.data.model.ParsedPackage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -13,8 +15,12 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
+import top.niunaijun.blackbox.core.env.BEnvironment
 import java.io.File
 import java.io.IOException
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 
@@ -23,11 +29,10 @@ import java.util.zip.ZipFile
  *
  * XAPK install steps:
  *  1. pick only the splits this phone needs (its CPU, screen density, language)
- *  2. unpack them
- *  3. if there are several, merge them into one APK (in a separate process) and sign it,
- *     because the sandbox engine only takes single APKs
- *  4. install that APK into the sandbox
- *  5. copy OBB game data into the sandboxed app's own Android/obb folder
+ *  2. install the base APK into the sandbox as it is
+ *  3. put the other splits next to it (the patched engine tells Android about them)
+ *     and unpack the CPU split's native libraries into the app's library folder
+ *  4. copy OBB game data into the sandboxed app's own Android/obb folder
  */
 class XapkInstallerEngine(
     private val context: Context,
@@ -36,6 +41,9 @@ class XapkInstallerEngine(
 
     companion object {
         val PACKAGE_EXTENSIONS = setOf("apk", "xapk", "apks", "apkm")
+
+        /** Steps of the last install, included in saved logs. */
+        fun installLogFile(context: Context) = File(context.cacheDir, "install.log")
     }
 
     private val inspectDir: File
@@ -251,66 +259,81 @@ class XapkInstallerEngine(
     ): Result<String> = withContext(Dispatchers.IO) {
         val job = coroutineContext[Job]
         val work = File(workRoot, "job_${System.currentTimeMillis()}")
+        val logFile = installLogFile(context)
+        val stamp = SimpleDateFormat("HH:mm:ss", Locale.US)
+        fun log(msg: String) {
+            try { logFile.appendText("${stamp.format(Date())} $msg\n") } catch (_: Throwable) {}
+        }
+        fun step(p: Float, msg: String) {
+            onProgress(p, msg)
+            log(msg)
+        }
+        try { logFile.writeText("Install of ${parsed.packageName} from ${parsed.sourceFile.name}\n") } catch (_: Throwable) {}
+
         try {
             var hasObb = false
 
             val installedPkg: String = if (!parsed.isXapk) {
-                onProgress(0.3f, "Installing into the sandbox...")
+                step(0.3f, "Installing into the sandbox...")
                 installWithTimeout(parsed.sourceFile)
             } else {
                 work.mkdirs()
-                val apkDir = File(work, "apks").apply { mkdirs() }
                 ZipFile(parsed.sourceFile).use { zip ->
                     val layout = readLayout(zip)
-                    val pkg: String
 
                     // 1. pick only the splits this phone needs
                     val chosen = SplitPicker.pick(layout.apkEntries, layout.baseEntry)
                     val skipped = layout.apkEntries.size - chosen.size
-                    onProgress(
+                    step(
                         0.04f,
                         "Using ${chosen.size} of ${layout.apkEntries.size} APKs" +
                             if (skipped > 0) " (skipping $skipped not needed on this phone)" else ""
                     )
+                    log("Chosen: ${chosen.joinToString()}")
+                    val baseName = layout.baseEntry ?: chosen.first()
 
-                    // 2. unpack them
-                    chosen.forEachIndexed { i, name ->
-                        job?.ensureActive()
-                        onProgress(
-                            0.05f + 0.2f * i / chosen.size,
-                            "Unpacking ${File(name).name} (${i + 1} of ${chosen.size})"
-                        )
-                        val outName = if (name == layout.baseEntry) "base.apk" else uniqueName(apkDir, File(name).name)
-                        extract(zip, zip.getEntry(name), File(apkDir, outName), checkCancel = { job?.ensureActive() })
-                    }
-
-                    // 3. merge + sign if there is more than one
-                    val apkToInstall: File = if (chosen.size == 1) {
-                        apkDir.listFiles()!!.first()
-                    } else {
-                        onProgress(0.3f, "Merging ${chosen.size} APKs...")
-                        val merged = File(work, "merged-unsigned.apk")
-                        var lines = 0
-                        MergeRunner.merge(context, apkDir, merged) { line ->
-                            lines++
-                            val p = 0.3f + 0.25f * (1f - 1f / (1f + lines / 15f))
-                            onProgress(p, "Merging: ${line.take(90)}")
-                        }
-                        apkDir.deleteRecursively()
-                        job?.ensureActive()
-                        onProgress(0.57f, "Signing merged APK...")
-                        val signed = File(work, "merged.apk")
-                        ApkResigner.sign(context, merged, signed)
-                        merged.delete()
-                        signed
-                    }
-
-                    // 4. install
+                    // 2. install the base APK as it is (original signature kept)
+                    step(0.1f, "Unpacking ${File(baseName).name}...")
+                    val baseApk = File(work, "base.apk")
+                    extract(zip, zip.getEntry(baseName), baseApk, checkCancel = { job?.ensureActive() })
                     job?.ensureActive()
-                    onProgress(0.65f, "Installing into the sandbox...")
-                    pkg = installWithTimeout(apkToInstall)
+                    step(0.35f, "Installing into the sandbox...")
+                    val pkg = installWithTimeout(baseApk)
+                    baseApk.delete()
 
-                    // 5. OBB data
+                    // 3. add the splits next to it: resources/features go to <app>/splits
+                    //    (the patched engine hands them to Android), CPU splits give native libraries
+                    val splits = chosen.filter { it != baseName }
+                    if (splits.isNotEmpty()) {
+                        val splitDir = File(BEnvironment.getAppDir(pkg), "splits")
+                        splitDir.deleteRecursively()
+                        splitDir.mkdirs()
+                        val libDir = BEnvironment.getAppLibDir(pkg).apply { mkdirs() }
+                        val abi = hostAbi()
+                        splits.forEachIndexed { i, name ->
+                            job?.ensureActive()
+                            step(
+                                0.45f + 0.2f * i / splits.size,
+                                "Adding ${File(name).name} (${i + 1} of ${splits.size})"
+                            )
+                            val tmp = File(work, "split_$i.apk")
+                            extract(zip, zip.getEntry(name), tmp, checkCancel = { job?.ensureActive() })
+                            val libs = extractNativeLibs(tmp, abi, libDir)
+                            if (libs > 0) log("  $libs native libraries ($abi) from ${File(name).name}")
+                            if (SplitPicker.abiOf(name) == null) {
+                                val dest = File(splitDir, SplitPicker.splitNameOf(name) + ".apk")
+                                if (!tmp.renameTo(dest)) {
+                                    tmp.copyTo(dest, overwrite = true)
+                                    tmp.delete()
+                                }
+                                log("  split ${dest.name} added")
+                            } else {
+                                tmp.delete()
+                            }
+                        }
+                    }
+
+                    // 4. OBB data
                     if (layout.obbEntries.isNotEmpty()) {
                         hasObb = true
                         val obbTargets = obbTargets(layout, pkg)
@@ -320,7 +343,7 @@ class XapkInstallerEngine(
                             job?.ensureActive()
                             val entry = zip.getEntry(entryName)
                             target.parentFile?.mkdirs()
-                            onProgress(0.7f + 0.28f * done / total, "Copying game data ${target.name}...")
+                            step(0.7f + 0.28f * done / total, "Copying game data ${target.name}...")
                             extract(zip, entry, target, { job?.ensureActive() }) { copied ->
                                 onProgress(
                                     0.7f + 0.28f * (done + copied) / total,
@@ -334,7 +357,7 @@ class XapkInstallerEngine(
                 }
             }
 
-            onProgress(0.98f, "Finishing up...")
+            step(0.98f, "Finishing up...")
             sandbox.copyIcon(parsed.iconPath, installedPkg)
             val previous = sandbox.metaStore.get(installedPkg)
             sandbox.metaStore.put(
@@ -349,18 +372,41 @@ class XapkInstallerEngine(
                     permissions = parsed.permissions.joinToString(",")
                 )
             )
-            onProgress(1f, "Installed!")
+            step(1f, "Installed!")
             Result.success(installedPkg)
         } catch (c: CancellationException) {
+            log("Cancelled")
             throw c
         } catch (t: Throwable) {
+            log("FAILED: $t")
             Result.failure(
                 if (t is OutOfMemoryError) IOException("Not enough memory for this XAPK.") else t
             )
         } finally {
-            MergeRunner.stop(context)
             work.deleteRecursively()
         }
+    }
+
+    /** CPU type the sandbox runs apps as (VelvetBox's own bitness). */
+    private fun hostAbi(): String {
+        val abis = if (Process.is64Bit()) Build.SUPPORTED_64_BIT_ABIS else Build.SUPPORTED_32_BIT_ABIS
+        return abis.firstOrNull() ?: Build.SUPPORTED_ABIS.first()
+    }
+
+    /** Copies lib/<abi>/*.so from [apk] into the app's native library folder. */
+    private fun extractNativeLibs(apk: File, abi: String, libDir: File): Int {
+        var count = 0
+        ZipFile(apk).use { zip ->
+            for (entry in zip.entries().toList()) {
+                val name = entry.name
+                if (entry.isDirectory || !name.startsWith("lib/$abi/") || !name.endsWith(".so")) continue
+                val fileName = name.substringAfterLast('/')
+                if (fileName.contains("..")) continue
+                extract(zip, entry, File(libDir, fileName))
+                count++
+            }
+        }
+        return count
     }
 
     /**
@@ -398,13 +444,6 @@ class XapkInstallerEngine(
             }
             name to target
         }
-    }
-
-    private fun uniqueName(dir: File, name: String): String {
-        if (!File(dir, name).exists() && name != "base.apk") return name
-        var i = 1
-        while (File(dir, "${i}_$name").exists()) i++
-        return "${i}_$name"
     }
 
     private fun extract(
