@@ -54,7 +54,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.FileItem
-import com.example.ui.components.RomanticHeader
 import com.example.ui.theme.EmeraldSafe
 import com.example.ui.theme.RoseGlowEnd
 import com.example.ui.theme.RoseGlowStart
@@ -69,102 +68,68 @@ fun XapkInstallerScreen(
     scannedPackages: List<FileItem>,
     onInspectFile: (File) -> Unit,
     onImportUri: (Uri) -> Unit,
-    onNavigateToFileBrowser: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var isGuideExpanded by remember { mutableStateOf(false) }
-
-    // Launcher for picking APK/XAPK from Android Document Provider
+    // System file picker for choosing an APK
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         uri?.let(onImportUri)
     }
 
-    Column(
+    Box(
         modifier = modifier
             .fillMaxSize()
             .background(VelvetBackground)
     ) {
-        RomanticHeader(
-            title = "XAPK & APK Installer",
-            subtitle = "Native split-APK & OBB unpacker for Android 9"
-        )
-
         LazyColumn(
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxSize()
         ) {
-            // Dropzone Card
             item {
-                InstallerDropzoneCard(
-                    onBrowseSystem = {
-                        filePickerLauncher.launch(arrayOf("*/*"))
+                Button(
+                    onClick = {
+                        filePickerLauncher.launch(
+                            arrayOf("application/vnd.android.package-archive", "application/octet-stream")
+                        )
                     },
-                    onBrowseInternal = onNavigateToFileBrowser
-                )
-            }
-
-            // Android 9 XAPK Info Guide
-            item {
-                XapkAndroid9GuideCard(
-                    isExpanded = isGuideExpanded,
-                    onToggle = { isGuideExpanded = !isGuideExpanded }
-                )
-            }
-
-            // Detected APK/XAPKs section
-            item {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)
+                    colors = ButtonDefaults.buttonColors(containerColor = VelvetPrimary),
+                    shape = RoundedCornerShape(14.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
                 ) {
-                    Text(
-                        text = "Detected Packages (${scannedPackages.size})",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onBackground
+                    Icon(
+                        imageVector = Icons.Default.FolderOpen,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
                     )
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Ready to sandbox",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = VelvetPrimary
+                        text = "Choose APK file",
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
                     )
                 }
             }
 
+            item {
+                Text(
+                    text = "APKs on this phone (${scannedPackages.size})",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                )
+            }
+
             if (scannedPackages.isEmpty()) {
                 item {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = VelvetSurface),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            modifier = Modifier.fillMaxWidth().padding(24.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Search,
-                                contentDescription = null,
-                                tint = VelvetPrimary,
-                                modifier = Modifier.size(32.dp)
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "No APK or XAPK files found in common folders.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = "Use 'Browse All Files' or pick a file to install.",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = VelvetPrimary
-                            )
-                        }
-                    }
+                    Text(
+                        text = "No APK files found. Use \"Choose APK file\".",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    )
                 }
             } else {
                 items(scannedPackages, key = { it.path }) { pkgFile ->
@@ -176,165 +141,7 @@ fun XapkInstallerScreen(
             }
 
             item {
-                Spacer(modifier = Modifier.height(32.dp))
-            }
-        }
-    }
-}
-
-@Composable
-private fun InstallerDropzoneCard(
-    onBrowseSystem: () -> Unit,
-    onBrowseInternal: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = VelvetSurface),
-        shape = RoundedCornerShape(22.dp),
-        modifier = modifier
-            .fillMaxWidth()
-            .border(1.5.dp, RoseGlowStart.copy(alpha = 0.4f), RoundedCornerShape(22.dp))
-    ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp)
-        ) {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .size(60.dp)
-                    .clip(CircleShape)
-                    .background(
-                        Brush.linearGradient(listOf(RoseGlowStart, RoseGlowEnd))
-                    )
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Download,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(30.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            Text(
-                text = "Install APK or XAPK File",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            Text(
-                text = "Decompresses multi-part split APKs and places OBB expansion archives automatically into isolated space.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                lineHeight = 18.sp
-            )
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Button(
-                    onClick = onBrowseInternal,
-                    colors = ButtonDefaults.buttonColors(containerColor = VelvetPrimary),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp)
-                        .testTag("browse_internal_files_button")
-                ) {
-                    Icon(imageVector = Icons.Default.FolderOpen, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "File Explorer",
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
-                    )
-                }
-
-                Button(
-                    onClick = onBrowseSystem,
-                    colors = ButtonDefaults.buttonColors(containerColor = VelvetSurfaceVariant),
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(48.dp)
-                        .testTag("browse_system_picker_button")
-                ) {
-                    Text(
-                        text = "Select Document",
-                        color = VelvetPrimary,
-                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold)
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun XapkAndroid9GuideCard(
-    isExpanded: Boolean,
-    onToggle: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = VelvetSurfaceVariant),
-        shape = RoundedCornerShape(16.dp),
-        modifier = modifier
-            .fillMaxWidth()
-            .clickable(onClick = onToggle)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Info,
-                        contentDescription = null,
-                        tint = VelvetPrimary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "How VelvetBox Solves Android 9 XAPK",
-                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-                Icon(
-                    imageVector = Icons.Default.ArrowForward,
-                    contentDescription = null,
-                    tint = VelvetPrimary,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
-
-            if (isExpanded) {
-                Spacer(modifier = Modifier.height(10.dp))
-                Text(
-                    text = "• Native Android 9 has no built-in XAPK handler: Standard package installers reject .xapk files because they are zip containers containing split APKs and OBB data.\n" +
-                            "• VelvetBox decomposes the XAPK container natively without external tools:\n" +
-                            "  1. Reads manifest.json and unpacks the base + split APKs.\n" +
-                            "  2. Installs the base APK and adds only the splits your phone needs (CPU, screen, language).\n" +
-                            "  3. Copies OBB game data into the app's own Android/obb folder inside the sandbox.\n" +
-                            "  4. The app runs inside VelvetBox, so the phone never installs it or sees its package name.\n" +
-                            "• Some apps still won't run in any sandbox: ones that need Google sign-in / Play Services, banking apps, games with anti-cheat, and 32-bit-only apps.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = 18.sp
-                )
+                Spacer(modifier = Modifier.height(24.dp))
             }
         }
     }

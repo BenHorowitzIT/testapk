@@ -354,7 +354,7 @@ fun PackageInspectorSheet(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Install in VelvetBox Sandbox",
+                    text = "Install in Ben's Sandbox",
                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
                 )
             }

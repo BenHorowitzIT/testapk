@@ -17,13 +17,13 @@ object LogSaver {
     fun save(context: Context, reason: String): Result<File> = runCatching {
         val dir = File(
             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-            "VelvetBox"
+            "Ben's Sandbox"
         )
         if (!dir.exists() && !dir.mkdirs()) {
-            throw IllegalStateException("Can't create Download/VelvetBox (storage permission?)")
+            throw IllegalStateException("Can't create Download/Ben's Sandbox (storage permission?)")
         }
         val stamp = SimpleDateFormat("yyyy-MM-dd_HH-mm-ss", Locale.US).format(Date())
-        val file = File(dir, "velvetbox-log-$stamp.txt")
+        val file = File(dir, "sandbox-log-$stamp.txt")
 
         file.bufferedWriter().use { out ->
             val version = try {
@@ -31,10 +31,10 @@ object LogSaver {
             } catch (_: Throwable) {
                 "?"
             }
-            out.write("VelvetBox log\n")
+            out.write("Ben's Sandbox log\n")
             out.write("Reason: $reason\n")
             out.write("Time: $stamp\n")
-            out.write("VelvetBox version: $version\n")
+            out.write("App version: $version\n")
             out.write("Android: ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})\n")
             out.write("Device: ${Build.MANUFACTURER} ${Build.MODEL}\n")
             out.write("ABIs: ${Build.SUPPORTED_ABIS.joinToString()}\n\n")

@@ -49,7 +49,7 @@ import com.example.ui.theme.VelvetSurfaceVariant
 fun InstallProgressDialog(
     progress: Float,
     status: String,
-    title: String = "Installing to VelvetBox",
+    title: String = "Installing to Ben's Sandbox",
     onCancel: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {

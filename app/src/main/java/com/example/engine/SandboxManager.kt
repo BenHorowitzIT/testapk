@@ -217,6 +217,32 @@ class SandboxManager(private val context: Context) {
         }
     }
 
+    /** Used by home-screen shortcuts: opens a sandboxed app by its package name. */
+    suspend fun launchByPackage(packageName: String): Result<Unit> = withContext(Dispatchers.IO) {
+        ensureEngine()
+        if (!isInstalled(packageName)) {
+            return@withContext Result.failure(
+                IllegalStateException("This app is no longer in Ben's Sandbox.")
+            )
+        }
+        val meta = metaStore.get(packageName)
+        if (meta?.status == "Disabled") {
+            return@withContext Result.failure(
+                IllegalStateException("${meta.appName} is disabled. Enable it in Ben's Sandbox first.")
+            )
+        }
+        try {
+            if (BlackBoxCore.get().launchApk(packageName, USER_ID)) {
+                metaStore.update(packageName) { it.copy(lastLaunchedTime = System.currentTimeMillis()) }
+                Result.success(Unit)
+            } else {
+                Result.failure(IllegalStateException("${meta?.appName ?: packageName} has no screen to open."))
+            }
+        } catch (t: Throwable) {
+            Result.failure(t)
+        }
+    }
+
     suspend fun clearAppData(app: SandboxedAppEntity): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             BlackBoxCore.get().stopPackage(app.packageName, USER_ID)

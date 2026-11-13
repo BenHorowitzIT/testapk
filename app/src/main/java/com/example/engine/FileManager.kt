@@ -11,7 +11,7 @@ import java.util.Locale
 
 enum class FileCategoryFilter {
     ALL,
-    PACKAGES, // APKs and XAPKs
+    PACKAGES, // APK files
     OBB,      // OBB expansion files
     SANDBOX   // The sandbox's own virtual storage (what sandboxed apps see as /sdcard)
 }
@@ -56,7 +56,7 @@ class FileManager(private val context: Context) {
                 listDirectory(sandboxDirectory, sortOption)
             }
             FileCategoryFilter.PACKAGES -> {
-                scanForExtensions(listOf("apk", "xapk", "apks", "apkm"), sortOption)
+                scanForExtensions(listOf("apk"), sortOption)
             }
             FileCategoryFilter.OBB -> {
                 scanForExtensions(listOf("obb"), sortOption)

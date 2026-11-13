@@ -1,5 +1,13 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -54,12 +62,6 @@ fun MainScreen(
     val currentTab by viewModel.currentTab.collectAsStateWithLifecycle()
     val sandboxedApps by viewModel.sandboxedApps.collectAsStateWithLifecycle()
     val storageInfo by viewModel.storageInfo.collectAsStateWithLifecycle()
-    val currentFiles by viewModel.currentFiles.collectAsStateWithLifecycle()
-    val currentDirectory by viewModel.currentDirectory.collectAsStateWithLifecycle()
-    val categoryFilter by viewModel.categoryFilter.collectAsStateWithLifecycle()
-    val sortOption by viewModel.sortOption.collectAsStateWithLifecycle()
-    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
-    val isLoadingFiles by viewModel.isLoadingFiles.collectAsStateWithLifecycle()
     val detectedPackages by viewModel.detectedPackages.collectAsStateWithLifecycle()
     val isInspecting by viewModel.isInspecting.collectAsStateWithLifecycle()
 
@@ -72,13 +74,13 @@ fun MainScreen(
     val inspectorSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val appDetailSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    // Handle Back Navigation in File Browser
-    BackHandler(enabled = currentTab == VelvetTab.FILE_BROWSER) {
-        val handled = viewModel.navigateUp()
-        if (!handled) {
-            viewModel.setTab(VelvetTab.SANDBOX)
-        }
+    // Back from Installer goes to the Sandbox tab
+    BackHandler(enabled = currentTab == VelvetTab.INSTALLER) {
+        viewModel.setTab(VelvetTab.SANDBOX)
     }
+
+    // Compact header that slides away when scrolling down and returns when scrolling up
+    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
 
     // Status snackbar triggers
     LaunchedEffect(statusMessage) {
@@ -93,6 +95,31 @@ fun MainScreen(
     }
 
     Scaffold(
+        topBar = {
+            TopAppBar(
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Favorite,
+                            contentDescription = null,
+                            tint = VelvetPrimary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = if (currentTab == VelvetTab.SANDBOX) "Ben's Sandbox" else "Install APK",
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = VelvetBackground,
+                    scrolledContainerColor = VelvetSurface,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground
+                ),
+                scrollBehavior = scrollBehavior
+            )
+        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             NavigationBar(
@@ -153,35 +180,12 @@ fun MainScreen(
                     modifier = Modifier.testTag("nav_item_installer")
                 )
 
-                NavigationBarItem(
-                    selected = currentTab == VelvetTab.FILE_BROWSER,
-                    onClick = { viewModel.setTab(VelvetTab.FILE_BROWSER) },
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Default.FolderOpen,
-                            contentDescription = "Files",
-                            modifier = Modifier.size(24.dp)
-                        )
-                    },
-                    label = {
-                        Text(
-                            text = "Explorer",
-                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
-                        )
-                    },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = MaterialTheme.colorScheme.onPrimary,
-                        selectedTextColor = VelvetPrimary,
-                        indicatorColor = VelvetPrimary,
-                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-                    ),
-                    modifier = Modifier.testTag("nav_item_files")
-                )
             }
         },
         containerColor = VelvetBackground,
-        modifier = modifier.fillMaxSize()
+        modifier = modifier
+            .fillMaxSize()
+            .nestedScroll(scrollBehavior.nestedScrollConnection)
     ) { innerPadding ->
         Box(
             modifier = Modifier
@@ -196,7 +200,8 @@ fun MainScreen(
                         onAppClick = { app -> viewModel.selectSandboxedApp(app) },
                         onLaunchApp = { app -> viewModel.launchApp(app) },
                         onNavigateToInstaller = { viewModel.setTab(VelvetTab.INSTALLER) },
-                        onSaveLog = { viewModel.saveLog() }
+                        onSaveLog = { viewModel.saveLog() },
+                        onAddShortcut = { app -> viewModel.addHomeScreenShortcut(app) }
                     )
                 }
 
@@ -204,28 +209,10 @@ fun MainScreen(
                     XapkInstallerScreen(
                         scannedPackages = detectedPackages,
                         onInspectFile = { file -> viewModel.inspectPackage(file) },
-                        onImportUri = { uri -> viewModel.importUri(uri) },
-                        onNavigateToFileBrowser = { viewModel.setTab(VelvetTab.FILE_BROWSER) }
+                        onImportUri = { uri -> viewModel.importUri(uri) }
                     )
                 }
 
-                VelvetTab.FILE_BROWSER -> {
-                    FileBrowserScreen(
-                        currentDirectory = currentDirectory,
-                        files = currentFiles,
-                        activeFilter = categoryFilter,
-                        sortOption = sortOption,
-                        searchQuery = searchQuery,
-                        isLoading = isLoadingFiles,
-                        onNavigateDirectory = { dir -> viewModel.navigateToDirectory(dir) },
-                        onNavigateUp = { viewModel.navigateUp() },
-                        onFilterChange = { filter -> viewModel.setCategoryFilter(filter) },
-                        onSortChange = { sort -> viewModel.setSortOption(sort) },
-                        onSearchChange = { query -> viewModel.setSearchQuery(query) },
-                        onInspectPackage = { file -> viewModel.inspectPackage(file) },
-                        onDeleteFile = { item -> viewModel.deleteFile(item) }
-                    )
-                }
             }
         }
     }
@@ -252,7 +239,8 @@ fun MainScreen(
             },
             onClearData = { viewModel.clearAppData(app) },
             onUninstall = { viewModel.uninstallApp(app) },
-            onToggleStatus = { viewModel.toggleAppStatus(app) }
+            onToggleStatus = { viewModel.toggleAppStatus(app) },
+            onAddShortcut = { viewModel.addHomeScreenShortcut(app) }
         )
     }
 

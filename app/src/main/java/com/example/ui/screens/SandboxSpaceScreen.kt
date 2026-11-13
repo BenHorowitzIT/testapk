@@ -4,7 +4,9 @@ import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -56,7 +58,6 @@ import androidx.compose.ui.unit.sp
 import com.example.data.local.SandboxedAppEntity
 import com.example.data.model.FileItem
 import com.example.data.model.SandboxStorageInfo
-import com.example.ui.components.RomanticHeader
 import com.example.ui.theme.EmeraldSafe
 import com.example.ui.theme.RoseGlowEnd
 import com.example.ui.theme.RoseGlowStart
@@ -74,22 +75,17 @@ fun SandboxSpaceScreen(
     onLaunchApp: (SandboxedAppEntity) -> Unit,
     onNavigateToInstaller: () -> Unit,
     onSaveLog: () -> Unit = {},
+    onAddShortcut: (SandboxedAppEntity) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    Column(
+    Box(
         modifier = modifier
             .fillMaxSize()
             .background(VelvetBackground)
     ) {
-        RomanticHeader(
-            title = "VelvetBox Sandbox",
-            subtitle = "Zero-slowdown isolated app container",
-            badgeText = "${apps.size} installed"
-        )
-
         LazyColumn(
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxSize()
         ) {
             // Storage Gauge Card
@@ -105,15 +101,17 @@ fun SandboxSpaceScreen(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = "Isolated Apps",
+                        text = "Apps (${apps.size})",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = MaterialTheme.colorScheme.onBackground
                     )
-                    Text(
-                        text = "Bypasses Host Limits",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = VelvetPrimary
-                    )
+                    if (apps.isNotEmpty()) {
+                        Text(
+                            text = "Long-press for home screen",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
                 }
             }
 
@@ -127,6 +125,7 @@ fun SandboxSpaceScreen(
                     SandboxedAppItem(
                         app = app,
                         onClick = { onAppClick(app) },
+                        onLongClick = { onAddShortcut(app) },
                         onLaunch = { onLaunchApp(app) }
                     )
                 }
@@ -139,7 +138,7 @@ fun SandboxSpaceScreen(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "Save log to Download/VelvetBox",
+                        text = "Save log",
                         style = MaterialTheme.typography.labelMedium,
                         color = VelvetPrimary
                     )
@@ -188,18 +187,11 @@ private fun StorageGaugeCard(
                         )
                     }
                     Spacer(modifier = Modifier.width(10.dp))
-                    Column {
-                        Text(
-                            text = "Sandbox Footprint",
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                        Text(
-                            text = "Isolated from host storage",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                    Text(
+                        text = "Storage used",
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
                 }
 
                 Text(
@@ -243,10 +235,12 @@ private fun StorageGaugeCard(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SandboxedAppItem(
     app: SandboxedAppEntity,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     onLaunch: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -255,7 +249,7 @@ private fun SandboxedAppItem(
         shape = RoundedCornerShape(16.dp),
         modifier = modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
             .border(1.dp, RoseGlowStart.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
             .testTag("sandboxed_app_${app.packageName}")
     ) {
@@ -413,22 +407,12 @@ private fun EmptySandboxCard(
             Spacer(modifier = Modifier.height(16.dp))
 
             Text(
-                text = "Your Sandbox Space is Empty",
+                text = "No apps yet",
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onSurface
             )
 
-            Spacer(modifier = Modifier.height(6.dp))
-
-            Text(
-                text = "Install APKs and XAPKs here to run them completely isolated without slowing down your Android device or hitting package limits.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                lineHeight = 18.sp,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center
-            )
-
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             Button(
                 onClick = onInstallClick,
@@ -439,7 +423,7 @@ private fun EmptySandboxCard(
                 Icon(imageVector = Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Install APK / XAPK",
+                    text = "Install APK",
                     color = MaterialTheme.colorScheme.onPrimary,
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
                 )

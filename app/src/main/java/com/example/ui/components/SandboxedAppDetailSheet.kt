@@ -1,5 +1,6 @@
 package com.example.ui.components
 
+import androidx.compose.material.icons.filled.AddToHomeScreen
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -74,6 +75,7 @@ fun SandboxedAppDetailSheet(
     onClearData: () -> Unit,
     onUninstall: () -> Unit,
     onToggleStatus: () -> Unit,
+    onAddShortcut: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     ModalBottomSheet(
@@ -240,7 +242,7 @@ fun SandboxedAppDetailSheet(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "Isolated Storage Footprint",
+                                text = "Storage",
                                 style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
                                 color = MaterialTheme.colorScheme.onSurface
                             )
@@ -259,13 +261,13 @@ fun SandboxedAppDetailSheet(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = "• Isolated app data: ${FileItem.formatBytes(app.dataSize)}",
+                        text = "• App data: ${FileItem.formatBytes(app.dataSize)}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     if (app.hasObb) {
                         Text(
-                            text = "• OBB Expansions: Active in isolated directory",
+                            text = "• Game data (OBB) included",
                             style = MaterialTheme.typography.bodySmall,
                             color = EmeraldSafe
                         )
@@ -282,29 +284,7 @@ fun SandboxedAppDetailSheet(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(14.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.Folder,
-                            contentDescription = null,
-                            tint = VelvetPrimary,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "Isolated Sandbox Root",
-                            style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = app.internalDataDir,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-
                     val sdf = SimpleDateFormat("MMM dd, yyyy HH:mm", Locale.getDefault())
-                    Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = "Installed: ${sdf.format(Date(app.installTime))}",
                         style = MaterialTheme.typography.labelSmall,
@@ -335,8 +315,32 @@ fun SandboxedAppDetailSheet(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Launch / Run in Sandbox",
+                    text = "Open",
                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Home-screen shortcut
+            OutlinedButton(
+                onClick = onAddShortcut,
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AddToHomeScreen,
+                    contentDescription = null,
+                    tint = VelvetPrimary,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Add to home screen",
+                    color = VelvetPrimary,
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
                 )
             }
 
@@ -414,7 +418,7 @@ fun SandboxedAppDetailSheet(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = "Uninstall from Sandbox",
+                    text = "Uninstall",
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold)
                 )

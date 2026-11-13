@@ -12,6 +12,7 @@ import com.example.data.model.SandboxStorageInfo
 import com.example.engine.FileCategoryFilter
 import com.example.engine.FileManager
 import com.example.engine.FileSortOption
+import com.example.engine.HomeShortcuts
 import com.example.engine.LogSaver
 import com.example.engine.SandboxManager
 import com.example.engine.XapkInstallerEngine
@@ -26,8 +27,7 @@ import java.io.File
 
 enum class VelvetTab {
     SANDBOX,
-    INSTALLER,
-    FILE_BROWSER
+    INSTALLER
 }
 
 class VelvetBoxViewModel(application: Application) : AndroidViewModel(application) {
@@ -87,13 +87,11 @@ class VelvetBoxViewModel(application: Application) : AndroidViewModel(applicatio
 
     init {
         refreshApps()
-        loadDirectory(_currentDirectory.value)
         scanDetectedPackages()
     }
 
     /** Called once storage permission is granted, so the browser can show real storage. */
     fun onStoragePermissionGranted() {
-        loadDirectory(fileManager.rootStorageDirectory)
         scanDetectedPackages()
     }
 
@@ -102,7 +100,6 @@ class VelvetBoxViewModel(application: Application) : AndroidViewModel(applicatio
         when (tab) {
             VelvetTab.SANDBOX -> refreshApps()
             VelvetTab.INSTALLER -> scanDetectedPackages()
-            VelvetTab.FILE_BROWSER -> {}
         }
     }
 
@@ -258,7 +255,7 @@ class VelvetBoxViewModel(application: Application) : AndroidViewModel(applicatio
             }
             _installProgress.value = null
             result.onSuccess {
-                _statusMessage.value = "'${pkg.appName}' is installed in your VelvetBox sandbox"
+                _statusMessage.value = "'${pkg.appName}' is installed in Ben's Sandbox"
                 closeInspect()
                 refreshApps()
                 _currentTab.value = VelvetTab.SANDBOX
@@ -268,7 +265,7 @@ class VelvetBoxViewModel(application: Application) : AndroidViewModel(applicatio
                     LogSaver.save(getApplication<Application>(), "Install of ${pkg.packageName} failed: $reason")
                 }
                 _statusMessage.value = "Install failed: $reason" +
-                    (saved.getOrNull()?.let { "\nLog saved to Download/VelvetBox/${it.name}" } ?: "")
+                    (saved.getOrNull()?.let { "\nLog saved to Download/Ben's Sandbox/${it.name}" } ?: "")
             }
         }
     }
@@ -288,7 +285,7 @@ class VelvetBoxViewModel(application: Application) : AndroidViewModel(applicatio
                 LogSaver.save(getApplication<Application>(), "Saved from the Save log button")
             }
             _statusMessage.value = saved.fold(
-                onSuccess = { "Log saved to Download/VelvetBox/${it.name}" },
+                onSuccess = { "Log saved to Download/Ben's Sandbox/${it.name}" },
                 onFailure = { "Couldn't save log: ${it.localizedMessage}" }
             )
         }
@@ -348,6 +345,20 @@ class VelvetBoxViewModel(application: Application) : AndroidViewModel(applicatio
                 setCategoryFilter(_categoryFilter.value)
             }
             scanDetectedPackages()
+        }
+    }
+
+    /** Puts a shortcut for a sandboxed app on the home screen. */
+    fun addHomeScreenShortcut(app: SandboxedAppEntity) {
+        viewModelScope.launch {
+            val ok = withContext(Dispatchers.IO) {
+                HomeShortcuts.add(getApplication<Application>(), app)
+            }
+            _statusMessage.value = if (ok) {
+                "Added ${app.appName} to the home screen"
+            } else {
+                "Your home screen app doesn't allow adding shortcuts"
+            }
         }
     }
 
