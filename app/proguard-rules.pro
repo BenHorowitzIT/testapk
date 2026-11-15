@@ -1,21 +1,39 @@
-# Add project specific ProGuard rules here.
-# You can control the set of applied configuration files using the
-# proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+# Ben's Sandbox optimizer rules.
+# Goal: let R8 speed up Jetpack Compose and the other libraries, while leaving the
+# sandbox engine exactly as it is (it relies heavily on reflection).
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# Never rename anything (keeps reflection and crash logs readable)
+-dontobfuscate
+-keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod,Exceptions,SourceFile,LineNumberTable
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# --- Sandbox engine (NewBlackbox) and its helpers: keep everything ---
+-keep class top.niunaijun.** { *; }
+-keep interface top.niunaijun.** { *; }
+-keep class black.** { *; }
+-keep interface black.** { *; }
+-keep class mirror.** { *; }
+-keep class android.** { *; }
+-keep interface android.** { *; }
+-keep class com.android.** { *; }
+-keep class me.weishu.** { *; }
+-keep class com.moandjiezana.toml.** { *; }
+-keep class com.google.gson.** { *; }
+-keep class * implements android.os.IInterface { *; }
+-keep class * extends android.os.Binder { *; }
+-keep class * implements android.os.Parcelable { *; }
+-keepclassmembers class * implements android.os.Parcelable {
+    public static final ** CREATOR;
+}
+-keep @top.niunaijun.blackreflection.annotation.BClass class * { *; }
+-keep @top.niunaijun.blackreflection.annotation.BClassName class * { *; }
+-keep @top.niunaijun.blackreflection.annotation.BClassNameNotProcess class * { *; }
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# --- Ben's Sandbox's own code: small, keep it all ---
+-keep class com.example.** { *; }
+
+# Native methods anywhere
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
+
+-dontwarn **

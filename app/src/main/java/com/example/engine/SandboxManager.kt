@@ -309,8 +309,21 @@ class SandboxManager(private val context: Context) {
                     drawable.draw(canvas)
                 }
             }
+            // Store icons small (list size), so they load fast
+            val max = 144
+            val small = if (bitmap.width > max || bitmap.height > max) {
+                val r = max.toFloat() / maxOf(bitmap.width, bitmap.height)
+                Bitmap.createScaledBitmap(
+                    bitmap,
+                    (bitmap.width * r).toInt().coerceAtLeast(1),
+                    (bitmap.height * r).toInt().coerceAtLeast(1),
+                    true
+                )
+            } else {
+                bitmap
+            }
             FileOutputStream(iconFileFor(packageName)).use { out ->
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+                small.compress(Bitmap.CompressFormat.PNG, 100, out)
             }
         } catch (_: Throwable) {
         }

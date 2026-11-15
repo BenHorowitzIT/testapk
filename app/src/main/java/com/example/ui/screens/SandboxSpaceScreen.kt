@@ -58,6 +58,7 @@ import androidx.compose.ui.unit.sp
 import com.example.data.local.SandboxedAppEntity
 import com.example.data.model.FileItem
 import com.example.data.model.SandboxStorageInfo
+import com.example.ui.rememberIcon
 import com.example.ui.theme.EmeraldSafe
 import com.example.ui.theme.RoseGlowEnd
 import com.example.ui.theme.RoseGlowStart
@@ -249,10 +250,7 @@ private fun SandboxedAppItem(
             modifier = Modifier.padding(14.dp)
         ) {
             // App Icon
-            val iconBitmap = remember(app.packageName, app.iconPath) {
-                val iconFile = File(app.iconPath ?: "")
-                if (app.iconPath != null && iconFile.exists()) BitmapFactory.decodeFile(iconFile.absolutePath)?.asImageBitmap() else null
-            }
+            val iconBitmap = rememberIcon(app.iconPath)
 
             if (iconBitmap != null) {
                 Image(
@@ -402,23 +400,6 @@ private fun EmptySandboxCard(
                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onSurface
             )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Button(
-                onClick = onInstallClick,
-                colors = ButtonDefaults.buttonColors(containerColor = VelvetPrimary),
-                shape = RoundedCornerShape(12.dp),
-                modifier = Modifier.testTag("install_first_package_button")
-            ) {
-                Icon(imageVector = Icons.Default.Download, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Install APK",
-                    color = MaterialTheme.colorScheme.onPrimary,
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold)
-                )
-            }
         }
     }
 }

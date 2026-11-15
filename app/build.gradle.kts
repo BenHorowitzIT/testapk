@@ -17,8 +17,8 @@ android {
     // API 27: Android 9 then lets VelvetBox use the hidden system parts the
     // sandbox engine needs ("dark greylist"), even if the exemption below fails.
     targetSdk = 27
-    versionCode = 8
-    versionName = "3.1"
+    versionCode = 9
+    versionName = "3.2"
 
     ndk {
       // arm64-v8a runs 64-bit apps in the sandbox; armeabi-v7a is kept for 32-bit-only phones.
@@ -39,7 +39,9 @@ android {
 
   buildTypes {
     release {
-      isMinifyEnabled = false
+      // R8 makes Compose scroll much smoother; the engine is excluded in proguard-rules.pro
+      isMinifyEnabled = true
+      proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       signingConfig = signingConfigs.getByName("velvet")
     }
     debug {

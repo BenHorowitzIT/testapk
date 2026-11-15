@@ -16,6 +16,7 @@ import com.example.widget.SandboxAppWidget
 import com.example.engine.LogSaver
 import com.example.engine.SandboxManager
 import com.example.engine.XapkInstallerEngine
+import com.example.ui.IconCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -256,6 +257,7 @@ class VelvetBoxViewModel(application: Application) : AndroidViewModel(applicatio
             }
             _installProgress.value = null
             result.onSuccess {
+                IconCache.clear()
                 _statusMessage.value = "'${pkg.appName}' is installed in Ben's Sandbox"
                 closeInspect()
                 refreshApps()
