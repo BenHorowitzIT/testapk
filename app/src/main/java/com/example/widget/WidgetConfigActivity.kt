@@ -38,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.font.FontWeight
@@ -71,8 +72,9 @@ class WidgetConfigActivity : ComponentActivity() {
         setContent {
             VelvetBoxTheme {
                 var apps by remember { mutableStateOf<List<SandboxedAppEntity>?>(null) }
+                val used = remember { SandboxAppWidget.usedPackages(this, widgetId) }
                 LaunchedEffect(Unit) { apps = sandbox.listApps() }
-                AppPicker(apps = apps, onPick = { pick(it) })
+                AppPicker(apps = apps, used = used, onPick = { pick(it) })
             }
         }
     }
@@ -88,7 +90,11 @@ class WidgetConfigActivity : ComponentActivity() {
 }
 
 @Composable
-private fun AppPicker(apps: List<SandboxedAppEntity>?, onPick: (SandboxedAppEntity) -> Unit) {
+private fun AppPicker(
+    apps: List<SandboxedAppEntity>?,
+    used: Set<String>,
+    onPick: (SandboxedAppEntity) -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -114,13 +120,15 @@ private fun AppPicker(apps: List<SandboxedAppEntity>?, onPick: (SandboxedAppEnti
                 contentPadding = PaddingValues(bottom = 16.dp)
             ) {
                 items(apps, key = { it.packageName }) { app ->
+                    val alreadyUsed = app.packageName in used
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .fillMaxWidth()
+                            .alpha(if (alreadyUsed) 0.45f else 1f)
                             .clip(RoundedCornerShape(14.dp))
                             .background(VelvetSurface)
-                            .clickable { onPick(app) }
+                            .clickable(enabled = !alreadyUsed) { onPick(app) }
                             .padding(12.dp)
                     ) {
                         val bitmap = remember(app.iconPath) {
@@ -141,11 +149,20 @@ private fun AppPicker(apps: List<SandboxedAppEntity>?, onPick: (SandboxedAppEnti
                             )
                         }
                         Spacer(Modifier.width(12.dp))
-                        Text(
-                            text = app.appName,
-                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                        Column {
+                            Text(
+                                text = app.appName,
+                                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            if (alreadyUsed) {
+                                Text(
+                                    text = "Already on home screen",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                     }
                 }
             }

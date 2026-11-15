@@ -17,8 +17,8 @@ android {
     // API 27: Android 9 then lets VelvetBox use the hidden system parts the
     // sandbox engine needs ("dark greylist"), even if the exemption below fails.
     targetSdk = 27
-    versionCode = 9
-    versionName = "3.2"
+    versionCode = 10
+    versionName = "3.3"
 
     ndk {
       // arm64-v8a runs 64-bit apps in the sandbox; armeabi-v7a is kept for 32-bit-only phones.

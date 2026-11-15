@@ -44,6 +44,18 @@ class SandboxAppWidget : AppWidgetProvider() {
             prefs(context).edit().putString(key(widgetId), packageName).apply()
         }
 
+        /** Apps that already have a widget on the home screen (ignoring [exceptWidgetId]). */
+        fun usedPackages(context: Context, exceptWidgetId: Int): Set<String> = try {
+            val manager = AppWidgetManager.getInstance(context)
+            val ids = manager.getAppWidgetIds(ComponentName(context, SandboxAppWidget::class.java))
+            val p = prefs(context)
+            ids.filter { it != exceptWidgetId }
+                .mapNotNull { p.getString(key(it), null) }
+                .toSet()
+        } catch (_: Throwable) {
+            emptySet()
+        }
+
         /** Refresh every placed widget (after installs, uninstalls, enable/disable). */
         fun updateAll(context: Context) {
             try {
